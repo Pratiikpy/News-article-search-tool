@@ -1,0 +1,165 @@
+import csv
+import requests
+from bs4 import BeautifulSoup
+from nltk import download
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+from spacy.lang.en import English
+
+# Download required NLTK resources
+download('stopwords')
+download('punkt')
+
+# Initialize NLP tools
+nlp = English()
+stop_words = set(stopwords.words('english'))
+lemmatizer = WordNetLemmatizer()
+
+def search_news_website(query):
+  """Search a news website for articles on a specific topic"""
+  # Send GET request to news website search page
+  resp = requests.get(f'https://www.popularnewswebsite.com/search?q={query}')
+
+  # Extract relevant information from the response
+  if resp.status_code == 200:
+    soup = BeautifulSoup(resp.text, 'html.parser')
+    results = []
+    for article in soup.find_all('article'):
+      title = article.h2.text
+      author = article.find('span', class_='author').text
+      date_published = article.find('span', class_='date').text
+      url = article.a['href']
+      content = ''
+      # Get full article content
+      try:
+        article_resp = requests.get(url)
+        if article_resp.status_code == 200:
+          article_soup = BeautifulSoup(article_resp.text, 'html.parser')
+          content = article_soup.find('div', class_='article-body').text
+      except Exception as e:
+        print(f'Error getting article content: {e}')
+      # Extract key phrases from content using NLP
+      doc = nlp(content)
+      key_phrases = []
+      for token in doc:
+        if (token.text.lower() not in stop_words) and (token.pos_ in ['NOUN', 'ADJ']):
+          key_phrases.append(lemmatizer.lemmatize(token.text))
+      # Add article data to results
+      results.append({
+          'title': title,
+          'author': author,
+          'date_published': date_published,
+          'url': url,
+          'key_phrases': key_phrases
+      })
+    return results
+  else:
+    print(f'Error searching news website: {resp.status_code}')
+
+def search_google(query):
+  """Search Google for articles and posts on a specific topic"""
+  # Send GET request to Google search page
+  resp = requests.get(f'https://www.google.com/search?q={query}')
+
+  # Extract relevant information from the response
+  if resp.status_code == 200:
+    soup = BeautifulSoup(resp.text, 'html.parser')
+    results = []
+    for item in soup.find_all('div', class_='g'):
+      try:
+        title = item.h3.text
+        url = item.h3.a['href']
+        snippet = item.find('span', class_='st').text
+        # Get full article or post content
+        content = ''
+        try:
+          article_resp = requests.get(url)
+          if article_resp.status_code == 200:
+            article_soup = BeautifulSoup(article_resp.text, 'html.parser')
+            content = article_soup.find('body').text
+        except Exception as e:
+          print(f'Error getting article content: {e}')
+        # Extract key phrases from content using NLP
+        doc = nlp(content)
+        key_phrases = []
+        for token in doc:
+          if (token.text.lower() not in stop_words) and (token.pos_ in ['NOUN', 'ADJ']):
+            key_phrases.append(lemmatizer.lemmatize(token.text))
+        # Add article or post data to results
+        results.append({
+            'title': title,
+            'url': url,
+            'snippet': snippet,
+            'key_phrases': key_phrases
+        })
+      except Exception as e:
+        print(f'Error processing item: {e}')
+    return results
+  else:
+    print(f'Error searching Google: {resp.status_code}')
+
+def search_forums(query):
+  """Search forums for discussions on a specific topic"""
+  # Send GET request to Reddit search page
+  resp = requests.get(f'https://www.reddit.com/search.json?q={query}')
+
+  # Extract relevant information from the response
+  if resp.status_code == 200:
+    data = resp.json()
+    results = []
+    for item in data['data']['children']:
+      title = item['data']['title']
+      url = item['data']['url']
+      subreddit = item['data']['subreddit']
+      created_utc = item['data']['created_utc']
+      content = ''
+      # Get full discussion content
+      try:
+        discussion_resp = requests.get(url)
+        if discussion_resp.status_code == 200:
+          discussion_soup = BeautifulSoup(discussion_resp.text, 'html.parser')
+          content = discussion_soup.find('div', class_='entry unvoted').text
+      except Exception as e:
+        print(f'Error getting discussion content: {e}')
+      # Extract key phrases from content using NLP
+      doc = nlp(content)
+      key_phrases = []
+      for token in doc:
+        if (token.text.lower() not in stop_words) and (token.pos_ in ['NOUN', 'ADJ']):
+          key_phrases.append(lemmatizer.lemmatize(token.text))
+      # Add discussion data to results
+      results.append({
+          'title': title,
+          'url': url,
+          'subreddit': subreddit,
+          'created_utc': created_utc,
+          'key_phrases': key_phrases
+      })
+    return results
+  else:
+    print(f'Error searching forums: {resp.status_code}')
+
+def search(query):
+  """Search multiple sources for information on a specific topic"""
+  results = []
+  # Search news website
+  news_results = search_news_website(query)
+  if news_results:
+    results.extend(news_results)
+  # Search Google
+  google_results = search_google(query)
+  if google_results:
+    results.extend(google_results)
+  # Search forums
+  forums_results = search_forums(query)
+  if forums_results:
+    results.extend(forums_results)
+  # Save results to CSV file
+  df = pd.DataFrame(results)
+  df.to_csv(f'{query}_results.csv', index=False)
+  print(f'Results saved to {query}_results.csv')
+
+# Example usage
+search('data science')
+
