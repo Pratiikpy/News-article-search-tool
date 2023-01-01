@@ -30,7 +30,7 @@ Contributions
 Info Hunter is an open-source project, and we welcome contributions from the community! If you have any suggestions or would like to report a bug, please open an issue or submit a pull request.
 
 Author
-Info Hunter was created by Prateek, a software engineer and data enthusiast. Follow him on GitHub or LinkedIn to stay updated on his latest projects.
+Info Hunter was created by Prateek(Me), a software engineer and data enthusiast. Follow him me GitHub or LinkedIn to stay updated on his latest projects.
 
 License
 Info Hunter is licensed under the MIT License. See LICENSE for details.
